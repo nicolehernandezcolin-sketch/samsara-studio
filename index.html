@@ -220,6 +220,7 @@ size();addEventListener("resize",size);
 // orbs: three rings orbiting the wheel
 const stage=document.getElementById("stage"),label=document.getElementById("label");
 const orbs=projects.map((p,i)=>{
+  if(i%3===0) return null; // fewer flowers: skip the small inner ring (still listed in the index)
   const el=document.createElement("div");el.className="orb";
   el.innerHTML=flowerSVG(p,i);el.style.setProperty("--glow",`hsla(${p.h[0]},90%,70%,.45)`);
   const ring=i%3, d=[90,130,170][ring]+Math.random()*25;
@@ -228,7 +229,7 @@ const orbs=projects.map((p,i)=>{
   el.onmouseleave=()=>label.style.opacity=0;
   el.onclick=()=>openProject(i);
   stage.appendChild(el);return o;
-});
+}).filter(Boolean);
 addEventListener("mousemove",e=>{label.style.left=e.clientX+18+"px";label.style.top=e.clientY+12+"px";});
 
 let mx=0,my=0;addEventListener("mousemove",e=>{mx=e.clientX/innerWidth-.5;my=e.clientY/innerHeight-.5;});
