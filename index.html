@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Samsara Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#050407; --fg:#f2ece2; --dim:#8d867c; --line:rgba(242,236,226,.14); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { height:100%; background:var(--bg); color:var(--fg); font-family:Inter,system-ui,sans-serif; overflow:hidden; }
+  canvas#stars { position:fixed; inset:0; z-index:0; }
+  header { position:fixed; top:0; left:0; right:0; display:flex; justify-content:space-between; align-items:center; padding:22px 28px; z-index:20; }
+  .mark { width:34px; height:34px; }
+  .burger { background:none; border:0; cursor:pointer; padding:8px; }
+  .burger span { display:block; width:20px; height:1.5px; background:var(--fg); margin:4px 0; transition:.3s; }
+  .menu-open .burger span:nth-child(1){ transform:translateY(5.5px) rotate(45deg); }
+  .menu-open .burger span:nth-child(2){ opacity:0; }
+  .menu-open .burger span:nth-child(3){ transform:translateY(-5.5px) rotate(-45deg); }
+
+  /* intro */
+  #intro { position:fixed; inset:0; display:grid; place-items:center; background:var(--bg); z-index:50; letter-spacing:.35em; font-size:11px; text-transform:uppercase; transition:opacity 1.2s ease; }
+  #intro.gone { opacity:0; pointer-events:none; }
+
+  /* orbit stage */
+  #stage { position:fixed; inset:0; z-index:5; }
+  .center { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:min(26vmin,220px); opacity:.55; pointer-events:none; }
+  .orb { position:absolute; cursor:pointer; transition:filter .6s, opacity .6s; filter:drop-shadow(0 0 18px var(--glow)) drop-shadow(0 10px 30px rgba(0,0,0,.6)); }
+  .orb svg { width:100%; height:100%; overflow:visible; display:block; transition:transform .8s cubic-bezier(.2,.8,.2,1); }
+  .orb:hover svg { transform:scale(1.18); }
+  .orb:hover { filter:drop-shadow(0 0 34px var(--glow)) drop-shadow(0 0 2px #fff); }
+  .orb.dim { opacity:.18; filter:grayscale(1) blur(1px); }
+  .orb .shine { animation:shine 6s ease-in-out infinite; }
+  @keyframes shine { 0%,100%{opacity:.25} 50%{opacity:.9} }
+  #aura { position:fixed; inset:0; z-index:1; pointer-events:none;
+    background: radial-gradient(40vmax 30vmax at 30% 35%, rgba(150,110,255,.10), transparent 70%),
+                radial-gradient(35vmax 30vmax at 72% 65%, rgba(255,150,190,.08), transparent 70%),
+                radial-gradient(30vmax 25vmax at 60% 20%, rgba(120,220,255,.07), transparent 70%); }
+  .label { position:fixed; pointer-events:none; z-index:15; font-family:'Cormorant Garamond',serif; font-style:italic; font-size:22px; opacity:0; transition:opacity .2s; white-space:nowrap; }
+  .label small { display:block; font-family:Inter; font-style:normal; font-size:10px; letter-spacing:.25em; text-transform:uppercase; color:var(--dim); margin-top:2px; }
+
+  .tagline { position:fixed; bottom:24px; left:28px; z-index:10; font-size:10px; letter-spacing:.3em; text-transform:uppercase; color:var(--dim); }
+  .filters { position:fixed; bottom:20px; right:28px; z-index:10; display:flex; gap:16px; flex-wrap:wrap; justify-content:flex-end; }
+  .filters button { background:none; border:0; color:var(--dim); font:inherit; font-size:10px; letter-spacing:.25em; text-transform:uppercase; cursor:pointer; }
+  .filters button.on, .filters button:hover { color:var(--fg); }
+
+  /* menu overlay */
+  #menu { position:fixed; inset:0; z-index:18; background:rgba(5,4,7,.94); backdrop-filter:blur(10px); display:grid; grid-template-columns:1.4fr 1fr; gap:40px; padding:110px 28px 28px; opacity:0; pointer-events:none; transition:opacity .5s; overflow:auto; }
+  .menu-open #menu { opacity:1; pointer-events:auto; }
+  #menu h3 { font-size:10px; letter-spacing:.3em; text-transform:uppercase; color:var(--dim); font-weight:500; margin-bottom:18px; }
+  .index { font-family:'Cormorant Garamond',serif; font-size:clamp(26px,4vw,48px); line-height:1.15; }
+  .index a { color:var(--fg); text-decoration:none; cursor:pointer; transition:color .2s; }
+  .index a:hover { color:#e8b77c; font-style:italic; }
+  .index span.sep { color:var(--dim); margin:0 .25em; }
+  .side a { display:block; color:var(--fg); text-decoration:none; font-family:'Cormorant Garamond',serif; font-size:28px; margin-bottom:6px; }
+  .side p { color:var(--dim); font-size:14px; line-height:1.6; max-width:34ch; margin:28px 0; }
+  .news { display:flex; border-bottom:1px solid var(--line); max-width:360px; }
+  .news input { flex:1; background:none; border:0; color:var(--fg); font:inherit; padding:10px 0; outline:none; }
+  .news button { background:none; border:0; color:var(--fg); font:inherit; font-size:11px; letter-spacing:.2em; text-transform:uppercase; cursor:pointer; }
+  .legal { margin-top:40px; font-size:11px; color:var(--dim); }
+
+  /* project panel */
+  #project { position:fixed; inset:0; z-index:30; background:var(--bg); overflow:auto; transform:translateY(100%); transition:transform .8s cubic-bezier(.7,0,.2,1); }
+  #project.open { transform:none; }
+  .p-wrap { max-width:1200px; margin:0 auto; padding:100px 28px 80px; }
+  .p-close { position:fixed; top:22px; right:28px; z-index:31; background:none; border:0; color:var(--fg); font-size:11px; letter-spacing:.3em; text-transform:uppercase; cursor:pointer; }
+  .p-meta { display:flex; gap:28px; flex-wrap:wrap; font-size:10px; letter-spacing:.25em; text-transform:uppercase; color:var(--dim); margin-bottom:18px; }
+  .p-title { font-family:'Cormorant Garamond',serif; font-weight:400; font-size:clamp(48px,9vw,128px); line-height:.95; }
+  .p-title em { color:#e8b77c; }
+  .p-desc { max-width:52ch; color:#cfc7bb; line-height:1.7; margin:32px 0 56px; }
+  .gallery { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; }
+  .gallery div { border-radius:4px; aspect-ratio:4/5; }
+  .gallery div:nth-child(1){ grid-column:span 4; aspect-ratio:16/10; }
+  .gallery div:nth-child(2){ grid-column:span 2; aspect-ratio:auto; }
+  .gallery div:nth-child(3),.gallery div:nth-child(4),.gallery div:nth-child(5){ grid-column:span 2; }
+  .gallery div:nth-child(6){ grid-column:span 6; aspect-ratio:21/9; }
+  .p-hero { position:relative; min-height:88vh; display:grid; grid-template-columns:1.1fr 1fr; align-items:center; gap:20px; }
+  .p-hero .bloom { width:min(46vw,560px); aspect-ratio:1; justify-self:center; filter:drop-shadow(0 0 50px var(--glow)); animation:spin 60s linear infinite, rise 1.4s cubic-bezier(.2,.8,.2,1) both; }
+  .p-hero .bloom svg { width:100%; height:100%; overflow:visible; }
+  @keyframes spin { to { transform:rotate(360deg) } }
+  @keyframes rise { from { opacity:0; scale:.6 } }
+  #project::before { content:""; position:fixed; inset:0; pointer-events:none; background:radial-gradient(50vmax 40vmax at 70% 40%, var(--tint), transparent 70%); }
+  .fade { animation:fadeUp 1s .2s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(30px) } }
+  .facts { display:grid; grid-template-columns:repeat(3,1fr); gap:28px; border-top:1px solid var(--line); padding:28px 0 64px; }
+  .facts h4 { font-size:10px; letter-spacing:.25em; text-transform:uppercase; color:var(--dim); font-weight:500; margin-bottom:10px; }
+  .facts p { font-family:'Cormorant Garamond',serif; font-size:22px; line-height:1.3; }
+  .gallery div { position:relative; overflow:hidden; }
+  .gallery div::after { content:""; position:absolute; inset:0; background:linear-gradient(120deg,transparent 40%,rgba(255,255,255,.12) 50%,transparent 60%); }
+  blockquote { font-family:'Cormorant Garamond',serif; font-style:italic; font-size:clamp(28px,4vw,52px); line-height:1.2; max-width:22ch; margin:100px auto; text-align:center; }
+  blockquote cite { display:block; font-family:Inter; font-style:normal; font-size:10px; letter-spacing:.25em; text-transform:uppercase; color:var(--dim); margin-top:22px; }
+  .next .mini { width:64px; height:64px; display:inline-block; vertical-align:middle; margin-left:14px; transition:transform 1s; }
+  .next:hover .mini { transform:rotate(90deg) scale(1.15); }
+  @media (max-width:720px){ .p-hero{grid-template-columns:1fr;min-height:auto;padding-top:20px} .p-hero .bloom{width:80vw;grid-row:1} .facts{grid-template-columns:1fr} }
+  .next { margin-top:60px; align-items:center; border-top:1px solid var(--line); padding-top:24px; display:flex; justify-content:space-between; font-family:'Cormorant Garamond',serif; font-size:28px; cursor:pointer; }
+  .next small { font-family:Inter; font-size:10px; letter-spacing:.25em; text-transform:uppercase; color:var(--dim); }
+
+  @media (max-width:720px){
+    #menu { grid-template-columns:1fr; padding-top:90px; }
+    .filters { left:28px; right:auto; bottom:52px; justify-content:flex-start; }
+    .gallery div { grid-column:span 6 !important; aspect-ratio:4/3 !important; }
+  }
+</style>
+</head>
+<body>
+<div id="intro">Samsara Studio</div>
+<canvas id="stars"></canvas>
+<div id="aura"></div>
+
+<header>
+  <svg class="mark" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.4" aria-label="Samsara Studio">
+    <circle cx="20" cy="20" r="17"/><circle cx="20" cy="20" r="5"/>
+    <g id="spokes"></g>
+  </svg>
+  <button class="burger" aria-label="Menu" onclick="document.body.classList.toggle('menu-open')"><span></span><span></span><span></span></button>
+</header>
+
+<div id="stage">
+  <svg class="center" viewBox="0 0 200 200" fill="none" stroke="#f2ece2" stroke-width=".8">
+    <circle cx="100" cy="100" r="90"/><circle cx="100" cy="100" r="62"/><circle cx="100" cy="100" r="14"/>
+    <g id="bigspokes"></g>
+    <text x="100" y="104" text-anchor="middle" fill="#f2ece2" stroke="none" font-family="Cormorant Garamond" font-size="0"></text>
+  </svg>
+</div>
+<div class="label" id="label"></div>
+
+<div class="tagline">Samsara Studio — work that comes back around</div>
+<nav class="filters" id="filters"></nav>
+
+<div id="menu">
+  <div>
+    <h3>Index</h3>
+    <div class="index" id="index"></div>
+  </div>
+  <div class="side">
+    <h3>Studio</h3>
+    <a href="#">About</a><a href="#">Services</a><a href="#">Start a project</a><a href="#">Instagram</a>
+    <p>Samsara Studio is a creative agency for brand, film, spatial and digital work — built in cycles of making, testing and remaking.</p>
+    <h3>Newsletter</h3>
+    <form class="news" onsubmit="event.preventDefault();this.querySelector('button').textContent='Thanks'"><input type="email" placeholder="Email address" required><button>Join</button></form>
+    <div class="legal">© 2026 Samsara Studio · Privacy · Terms</div>
+  </div>
+</div>
+
+<button class="p-close" id="pclose" style="display:none">Close ✕</button>
+<section id="project"><div class="p-wrap" id="pwrap"></div></section>
+
+<script>
+// ---- Project data: swap gradients for real images (use `img: "path.jpg"`) ----
+const projects = [
+  {n:"Lotus Hours", c:"Branding", y:2026, client:"Lotus Tea House", h:[28,12]},
+  {n:"Second Light", c:"Film", y:2026, client:"Aurora Records", h:[210,260]},
+  {n:"Field Notes", c:"Editorial", y:2025, client:"Ground Journal", h:[95,45]},
+  {n:"Ember Room", c:"Spatial", y:2025, client:"Ember Bar", h:[14,340]},
+  {n:"Tidewater", c:"Digital", y:2025, client:"Tide Co.", h:[190,170]},
+  {n:"Paper Moon", c:"Branding", y:2025, client:"Moon Bakery", h:[45,30]},
+  {n:"Orbit 9", c:"Digital", y:2024, client:"Orbit Labs", h:[250,290]},
+  {n:"Saffron Line", c:"Spatial", y:2024, client:"Saffron Hotels", h:[35,8]},
+  {n:"Quiet Machine", c:"Film", y:2024, client:"Kinetic Audio", h:[0,220]},
+  {n:"Verdant", c:"Branding", y:2024, client:"Verdant Farms", h:[120,80]},
+  {n:"Night Garden", c:"Spatial", y:2023, client:"Hollow Club", h:[300,260]},
+  {n:"Return", c:"Film", y:2023, client:"Samsara (self-initiated)", h:[30,200]},
+  {n:"Glass Archive", c:"Editorial", y:2023, client:"Museum of Light", h:[200,40]},
+  {n:"Copper Sound", c:"Digital", y:2023, client:"Copper FM", h:[22,0]},
+  {n:"Morning Ritual", c:"Branding", y:2022, client:"Dawn Coffee", h:[38,350]},
+  {n:"Low Tide", c:"Editorial", y:2022, client:"Sea Press", h:[180,230]},
+];
+// ---- Crystal glass flower generator ----
+const PETALS = [
+  "M0 0 C-22 -18 -18 -62 0 -78 C18 -62 22 -18 0 0Z",          // lotus
+  "M0 0 C-30 -22 -26 -60 -8 -74 Q0 -66 8 -74 C26 -60 30 -22 0 0Z", // notched
+  "M0 0 C-14 -26 -10 -70 0 -84 C10 -70 14 -26 0 0Z",          // slender star
+  "M0 0 C-34 -30 -30 -70 0 -66 C30 -70 34 -30 0 0Z",           // round
+];
+function flowerSVG(p,i,big){
+  const id="f"+i+(big?"b":""), n=[6,7,8,5,9][i%5], shape=PETALS[i%4], h1=p.h[0], h2=p.h[1];
+  const layer=(count,scale,rot,op)=>Array.from({length:count},(_,k)=>{
+    const a=rot+k*360/count;
+    return `<g transform="rotate(${a}) scale(${scale})">
+      <path d="${shape}" fill="url(#${id}g)" stroke="url(#${id}s)" stroke-width="1.1" opacity="${op}"/>
+      <path d="M0 -6 L0 -64" stroke="rgba(255,255,255,.35)" stroke-width=".6"/>
+      <path class="shine" style="animation-delay:${(k*.4+i*.3)%6}s" d="M-4 -14 C-10 -34 -8 -52 -2 -62" stroke="#fff" stroke-width="1.6" stroke-linecap="round" fill="none" opacity=".5"/>
+    </g>`}).join("");
+  return `<svg viewBox="-100 -100 200 200">
+    <defs>
+      <linearGradient id="${id}g" x1="0" y1="0" x2="0" y2="-1" gradientUnits="objectBoundingBox" gradientTransform="rotate(180 .5 .5)">
+        <stop offset="0" stop-color="hsl(${h2} 80% 70%)" stop-opacity=".55"/>
+        <stop offset=".55" stop-color="hsl(${h1} 90% 85%)" stop-opacity=".18"/>
+        <stop offset="1" stop-color="#fff" stop-opacity=".42"/>
+      </linearGradient>
+      <linearGradient id="${id}s" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#fff" stop-opacity=".95"/>
+        <stop offset=".5" stop-color="hsl(${h1} 100% 80%)" stop-opacity=".5"/>
+        <stop offset="1" stop-color="hsl(${(h1+140)%360} 100% 80%)" stop-opacity=".9"/>
+      </linearGradient>
+      <radialGradient id="${id}c"><stop offset="0" stop-color="#fff"/><stop offset=".4" stop-color="hsl(${h1} 100% 85%)" stop-opacity=".9"/><stop offset="1" stop-color="hsl(${h2} 80% 50%)" stop-opacity=".1"/></radialGradient>
+    </defs>
+    <g style="mix-blend-mode:screen">
+      ${layer(n,1,0,.95)}
+      ${layer(n,.66,180/n,1)}
+      ${layer(5,.32,18,1)}
+    </g>
+    <circle r="9" fill="url(#${id}c)"/>
+    ${Array.from({length:7},(_,k)=>{const a=k*51.4*Math.PI/180;return `<circle cx="${Math.cos(a)*14}" cy="${Math.sin(a)*14}" r="1.6" fill="#fff" opacity=".85"/>`}).join("")}
+  </svg>`;
+}
+const grad = (h,s=1)=>`radial-gradient(circle at 35% 30%, hsl(${h[0]} 70% ${62*s}%), hsl(${h[1]} 55% ${30*s}%) 60%, hsl(${h[1]} 60% ${8*s}%))`;
+
+// logo spokes
+for(const [id,r1,r2] of [["spokes",5,17],["bigspokes",14,90]]){
+  const g=document.getElementById(id), cx=id==="spokes"?20:100;
+  for(let i=0;i<8;i++){const a=i*Math.PI/4;g.insertAdjacentHTML("beforeend",`<line x1="${cx+r1*Math.cos(a)}" y1="${cx+r1*Math.sin(a)}" x2="${cx+r2*Math.cos(a)}" y2="${cx+r2*Math.sin(a)}"/>`);}
+}
+
+// starfield
+const cv=document.getElementById("stars"),cx=cv.getContext("2d");let stars=[];
+function size(){cv.width=innerWidth*devicePixelRatio;cv.height=innerHeight*devicePixelRatio;stars=Array.from({length:260},()=>({x:Math.random(),y:Math.random(),r:Math.random()*1.3+.2,t:Math.random()*6}));}
+size();addEventListener("resize",size);
+
+// orbs: three rings orbiting the wheel
+const stage=document.getElementById("stage"),label=document.getElementById("label");
+const orbs=projects.map((p,i)=>{
+  const el=document.createElement("div");el.className="orb";
+  el.innerHTML=flowerSVG(p,i);el.style.setProperty("--glow",`hsla(${p.h[0]},90%,70%,.45)`);
+  const ring=i%3, d=[90,130,170][ring]+Math.random()*25;
+  const o={el,p,ring:[.24,.32,.40][ring],ang:i/projects.length*Math.PI*2*3+Math.random()*.4,spd:[.05,-.035,.025][ring],d,bob:Math.random()*6,rot:Math.random()*360,rs:(Math.random()-.5)*14};
+  el.onmouseenter=()=>{label.innerHTML=`${p.n}<small>${p.c} · ${p.y}</small>`;label.style.opacity=1};
+  el.onmouseleave=()=>label.style.opacity=0;
+  el.onclick=()=>openProject(i);
+  stage.appendChild(el);return o;
+});
+addEventListener("mousemove",e=>{label.style.left=e.clientX+18+"px";label.style.top=e.clientY+12+"px";});
+
+let mx=0,my=0;addEventListener("mousemove",e=>{mx=e.clientX/innerWidth-.5;my=e.clientY/innerHeight-.5;});
+let last=performance.now();
+function frame(now){
+  const dt=(now-last)/1000;last=now;
+  const W=innerWidth,H=innerHeight,m=Math.min(W,H),scale=W<720?.7:1;
+  cx.clearRect(0,0,cv.width,cv.height);
+  for(const s of stars){s.t+=dt;cx.globalAlpha=.4+.6*Math.abs(Math.sin(s.t));cx.fillStyle="#fff";cx.beginPath();cx.arc((s.x*W-mx*12)*devicePixelRatio,(s.y*H-my*12)*devicePixelRatio,s.r*devicePixelRatio,0,7);cx.fill();}
+  for(const o of orbs){
+    if(!paused) o.ang+=o.spd*dt;
+    const rx=o.ring*m*Math.min(W/H,1.6)*.9, ry=o.ring*m;
+    const x=W/2+Math.cos(o.ang)*rx+mx*o.d*.4, y=H/2+Math.sin(o.ang)*ry+Math.sin(now/1500+o.bob)*6+my*o.d*.4;
+    const sz=o.d*scale*(.85+.25*Math.sin(o.ang));
+    if(!paused) o.rot+=o.rs*dt;
+    const tilt=Math.sin(now/2600+o.bob)*22;
+    Object.assign(o.el.style,{left:x+"px",top:y+"px",width:sz+"px",height:sz+"px",zIndex:Math.round(100+Math.sin(o.ang)*50),
+      transform:`translate(-50%,-50%) perspective(600px) rotateX(${tilt}deg) rotate(${o.rot}deg)`});
+  }
+  requestAnimationFrame(frame);
+}
+let paused=false;stage.addEventListener("mouseover",e=>paused=!!e.target.closest(".orb"));
+requestAnimationFrame(frame);
+
+// filters
+const cats=["All",...new Set(projects.map(p=>p.c))],fEl=document.getElementById("filters");
+cats.forEach(c=>{const b=document.createElement("button");b.textContent=c;if(c==="All")b.className="on";
+  b.onclick=()=>{fEl.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));orbs.forEach(o=>o.el.classList.toggle("dim",c!=="All"&&o.p.c!==c));};fEl.appendChild(b);});
+
+// index
+document.getElementById("index").innerHTML=projects.map((p,i)=>`<a onclick="openProject(${i})">${p.n}</a>`).join('<span class="sep">/</span>');
+
+// project page
+const panel=document.getElementById("project"),pclose=document.getElementById("pclose");
+function openProject(i){
+  const p=projects[i],nx=projects[(i+1)%projects.length];
+  document.body.classList.remove("menu-open");
+  const ni=(i+1)%projects.length;
+  panel.style.setProperty("--tint",`hsla(${p.h[0]},80%,60%,.14)`);
+  panel.style.setProperty("--glow",`hsla(${p.h[0]},90%,70%,.5)`);
+  const svc={Branding:"Identity · Naming · Packaging",Film:"Direction · Edit · Sound",Editorial:"Art direction · Print · Type",Spatial:"Interiors · Signage · Lighting",Digital:"Web · Product · Motion"}[p.c];
+  document.getElementById("pwrap").innerHTML=`
+    <div class="p-hero">
+      <div class="fade">
+        <div class="p-meta"><span>${p.c}</span><span>${p.y}</span></div>
+        <h1 class="p-title">${p.n.split(" ")[0]} <em>${p.n.split(" ").slice(1).join(" ")}</em></h1>
+        <p class="p-desc">A ${p.c.toLowerCase()} project for ${p.client}. Replace this with the brief, the idea and the outcome — two or three sentences is plenty; let the work carry the page.</p>
+      </div>
+      <div class="bloom">${flowerSVG(p,i,true)}</div>
+    </div>
+    <div class="facts"><div><h4>Client</h4><p>${p.client}</p></div><div><h4>Services</h4><p>${svc}</p></div><div><h4>Year</h4><p>${p.y}</p></div></div>
+    <div class="gallery">${[1,.8,.6,1.1,.7,.9].map(s=>`<div style="background:${p.img?`url(${p.img}) center/cover`:grad(p.h,s)}"></div>`).join("")}</div>
+    <blockquote>“A line from the client about how the work felt — short, warm, specific.”<cite>${p.client}</cite></blockquote>
+    <div class="next" onclick="openProject(${ni})"><small>Next project</small><span>${nx.n}<span class="mini">${flowerSVG(nx,ni,true).replace(/id="f(\d+)b/g,'id="f$1n').replace(/#f(\d+)b/g,'#f$1n')}</span></span></div>`;
+  panel.scrollTop=0;panel.classList.add("open");pclose.style.display="block";
+}
+pclose.onclick=()=>{panel.classList.remove("open");pclose.style.display="none";};
+addEventListener("keydown",e=>{if(e.key==="Escape"){pclose.onclick();document.body.classList.remove("menu-open");}});
+
+setTimeout(()=>document.getElementById("intro").classList.add("gone"),1400);
+</script>
+</body>
+</html>
