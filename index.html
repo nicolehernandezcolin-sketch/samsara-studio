@@ -221,15 +221,16 @@ size();addEventListener("resize",size);
 
 // orbs: three rings orbiting the wheel
 const stage=document.getElementById("stage"),label=document.getElementById("label");
+let slot=0;
 const orbs=projects.map((p,i)=>{
   if(i%3===0) return null; // fewer flowers: skip the small inner ring (still listed in the index)
   const el=document.createElement("div");el.className="orb";
   el.innerHTML=flowerSVG(p,i);el.style.setProperty("--glow",`hsla(${p.h[0]},90%,70%,.45)`);
-  const ring=i%3, d=[90,130,170][ring]+Math.random()*25;
-  const o={el,p,ring:[.24,.32,.40][ring],ang:i/projects.length*Math.PI*2*3+Math.random()*.4,spd:[.05,-.035,.025][ring],d,bob:Math.random()*6,rot:Math.random()*360,rs:(Math.random()-.5)*14};
+  const k=slot++;
+  const o={el,p,i,ring:k%2?.30:.34,ang:k/10*Math.PI*2-Math.PI/2,d:k%2?120:145,bob:Math.random()*6,rot:Math.random()*360,rs:(Math.random()-.5)*14};
   el.onmouseenter=()=>{label.innerHTML=`${p.n}<small>${p.c} · ${p.y}</small>`;label.style.opacity=1};
   el.onmouseleave=()=>label.style.opacity=0;
-  el.onclick=()=>{ if(el.classList.contains("spinning"))return; el.classList.add("spinning"); setTimeout(()=>{openProject(i);el.classList.remove("spinning");},850); };
+  el.onclick=()=>{ if(orbs.some(x=>x.fly))return; o.fly=performance.now(); label.style.opacity=0; };
   stage.appendChild(el);return o;
 }).filter(Boolean);
 addEventListener("mousemove",e=>{label.style.left=e.clientX+18+"px";label.style.top=e.clientY+12+"px";});
@@ -243,13 +244,19 @@ function frame(now){
   for(const s of stars){s.t+=dt;cx.globalAlpha=.4+.6*Math.abs(Math.sin(s.t));cx.fillStyle="#fff";cx.beginPath();cx.arc((s.x*W-mx*12)*devicePixelRatio,(s.y*H-my*12)*devicePixelRatio,s.r*devicePixelRatio,0,7);cx.fill();}
   for(const o of orbs){
     // flowers stay in place; only a gentle float below
-    const rx=o.ring*m*Math.min(W/H,1.6)*.9, ry=o.ring*m;
-    const x=W/2+Math.cos(o.ang)*rx+mx*o.d*.06+Math.cos(now/2800+o.bob)*3, y=H/2+Math.sin(o.ang)*ry+Math.sin(now/2200+o.bob)*5+my*o.d*.06;
-    const sz=o.d*scale*(.85+.25*Math.sin(o.ang));
+    const rx=o.ring*m, ry=o.ring*m;
+    let sweep=0,shrink=1,grow=1,spin=0;
+    if(o.fly){ // one fluid motion: sweep around the circle, spiral into the center, grow and spin
+      const t=Math.min((now-o.fly)/1300,1), e=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+      sweep=e*Math.PI*2; shrink=1-e; grow=1+e*3.2; spin=e*1080;
+      if(t>=1&&!o.done){o.done=true;openProject(o.i);setTimeout(()=>{o.fly=0;o.done=false;},900);}
+    }
+    const A=o.ang+sweep, R=shrink;
+    const x=W/2+Math.cos(A)*rx*R+mx*o.d*.06+Math.cos(now/2800+o.bob)*3, y=H/2+Math.sin(A)*ry*R+Math.sin(now/2200+o.bob)*5+my*o.d*.06;
+    const sz=o.d*scale*grow;
+    Object.assign(o.el.style,{left:x+"px",top:y+"px",width:sz+"px",height:sz+"px",zIndex:o.fly?500:100,
+      transform:`translate(-50%,-50%) perspective(600px) rotateX(${o.fly?0:Math.sin(now/2600+o.bob)*8}deg) rotate(${o.rot+spin}deg)`});
     if(!paused) o.rot+=o.rs*.3*dt;
-    const tilt=Math.sin(now/2600+o.bob)*8;
-    Object.assign(o.el.style,{left:x+"px",top:y+"px",width:sz+"px",height:sz+"px",zIndex:Math.round(100+Math.sin(o.ang)*50),
-      transform:`translate(-50%,-50%) perspective(600px) rotateX(${tilt}deg) rotate(${o.rot}deg)`});
   }
   requestAnimationFrame(frame);
 }
